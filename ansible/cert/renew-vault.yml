@@ -1,0 +1,20 @@
+- name: Renew Vault certificate for 90 days
+  hosts: marion
+  remote_user: root
+
+  tasks:
+    - name:
+
+    - name: Set file visibility
+      ansible.builtin.file:
+        path: /opt/vault/tls
+        recurse: yes
+        owner: vault
+        group: vault
+        # read-write owner only
+        mode: "0700"
+
+    - name: Restart to switch to new certs (VAULT IS SEALED HERE)
+      ansible.builtin.systemd:
+        name: vault.service
+        state: reloaded

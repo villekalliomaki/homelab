@@ -1,0 +1,9 @@
+- name: Update packages
+  hosts: homelab
+  remote_user: root
+
+  tasks:
+    - name: Update package lists and upgrade
+      apt:
+        upgrade: yes
+        update_cache: yes
