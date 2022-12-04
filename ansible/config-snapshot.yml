@@ -1,0 +1,20 @@
+- name: Configuration snapshot
+  hosts: homelab
+  remote_user: root
+
+  tasks:
+    - name: Copy files
+      copy:
+        src: "{{ item.path }}"
+        dest: "/root/config-snaphots/{{ item.name }}/"
+        remote_src: true
+        backup: true
+      with_items:
+        - name: vault
+          path: "/etc/vault.d/vault.hcl"
+        - name: nomad
+          path: "/etc/nomad.d/nomad.hcl"
+        - name: headscale
+          path: "/etc/headscale/config.yaml"
+        - name: consul
+          path: "/etc/consul.d/consul.hcl"

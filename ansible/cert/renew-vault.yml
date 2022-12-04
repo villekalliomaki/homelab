@@ -3,7 +3,7 @@
   remote_user: root
 
   tasks:
-    - name:
+    #- name:
 
     - name: Set file visibility
       ansible.builtin.file:
@@ -14,7 +14,7 @@
         # read-write owner only
         mode: "0700"
 
-    - name: Restart to switch to new certs (VAULT IS SEALED HERE)
+    - name: Restart to switch to new certs (VAULT IS SEALED)
       ansible.builtin.systemd:
         name: vault.service
         state: reloaded
