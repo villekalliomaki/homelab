@@ -4,6 +4,6 @@
 
   tasks:
     - name: Update package lists and upgrade
-      apt:
-        upgrade: yes
-        update_cache: yes
+      ansible.builtin.apt:
+        upgrade: true
+        update_cache: true

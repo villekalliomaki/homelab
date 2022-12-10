@@ -3,7 +3,8 @@
   remote_user: root
 
   tasks:
-    #- name:
+    - name: Create a new certificate and key
+      register: issue_out
 
     - name: Set file visibility
       ansible.builtin.file:

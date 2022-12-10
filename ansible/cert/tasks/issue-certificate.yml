@@ -1,0 +1,4 @@
+- name: Generate a new certificate
+  ansible.builtin.command:
+    cmd: vault write -format=json pki/issue/{{ certificate.name }}
+    argv:
