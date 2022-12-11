@@ -33,5 +33,3 @@ vault write -format=json pki/issue/domain \
 ```
 
 ## Automation
-
-
