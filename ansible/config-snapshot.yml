@@ -4,17 +4,18 @@
 
   tasks:
     - name: Copy files
-      copy:
+      ansible.builtin.copy:
         src: "{{ item.path }}"
         dest: "/root/config-snaphots/{{ item.name }}/"
         remote_src: true
         backup: true
+        mode: "preserve"
       with_items:
         - name: vault
-          path: "/etc/vault.d/vault.hcl"
+          path: "/etc/vault.d/"
         - name: nomad
-          path: "/etc/nomad.d/nomad.hcl"
+          path: "/etc/nomad.d/"
         - name: headscale
-          path: "/etc/headscale/config.yaml"
+          path: "/etc/headscale/"
         - name: consul
-          path: "/etc/consul.d/consul.hcl"
+          path: "/etc/consul.d/"
