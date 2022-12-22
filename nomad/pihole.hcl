@@ -2,6 +2,12 @@ job "pihole" {
     datacenters = ["home"]
     type = "service"
 
+    affinity {
+        attribute = "${attr.unique.hostname}"
+        value = "marion"
+        weight = 100
+    }
+
     group "pihole" {
         count = 1
 
