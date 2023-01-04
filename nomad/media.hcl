@@ -17,6 +17,10 @@ job "media" {
             type = "host"
             source = "media-data-jellyfin"
         }
+        volume "data-jfa-go" {
+            type = "host"
+            source = "media-data-jfa-go"
+        }
         volume "data-transmission" {
             type = "host"
             source = "media-data-transmission"
@@ -57,8 +61,12 @@ job "media" {
         }
 
         network {
-            port "http-jellyfin" {
+            port "jellyfin" {
                 static = 8096
+            }
+
+            port "jfa-go" {
+                static = 8056
             }
 
             port "transmission" {
@@ -86,15 +94,40 @@ job "media" {
         task "jellyfin" {
             driver = "docker"
 
+            service {
+                port = "jellyfin"
+                provider = "nomad"
+                tags = [
+                    "traefik.enable=true",
+                    "traefik.http.routers.jellyfin.tls=true",
+                    "traefik.http.routers.jellyfin.rule=Host(`media.1fi.fi`) || Host(`media-cf.1fi.fi`)",
+                    "traefik.http.routers.jellyfin.entryPoints=external_https",
+                    "traefik.http.routers.jellyfin.tls.certresolver=acme"
+                ]
+
+                check {
+                    type     = "http"
+                    name     = "jellyfin-health"
+                    path     = "/health"
+                    interval = "30s"
+                    timeout  = "5s"
+                }
+            }
+
             config {
                 # https://hub.docker.com/r/jellyfin/jellyfin/tags
                 image = "jellyfin/jellyfin:10.8.8"
-                ports = ["http-jellyfin"]
+                ports = ["jellyfin"]
                 args = [
                     "--datadir=/data/data",
                     "--configdir=/data/config",
                     "--cachedir=/cache"
                 ]
+            }
+
+            env {
+                PGID = "911"
+                PUID = "911"
             }
 
             resources {
@@ -121,31 +154,92 @@ job "media" {
             }
         }
 
-        // # Jellyfin user management
-        // task "jfa" {
-        //     config {
-        //         # https://hub.docker.com/r/hrfee/jfa-go/tags
-        //         image = "hrfee/jfa-go:latest"
-        //     }
-        // }
+        # Jellyfin user management
+        task "jfa" {
+            driver = "docker"
+
+            service {
+                port = "jfa-go"
+                provider = "nomad"
+                tags = [
+                    "traefik.enable=true",
+                    "traefik.http.routers.jfa-go.tls=true",
+                    "traefik.http.routers.jfa-go.rule=(Host(`media.1fi.fi`) || Host(`media-cf.1fi.fi`)) && PathPrefix(`/jfa`)",
+                    "traefik.http.routers.jfa-go.entryPoints=external_https",
+                    "traefik.http.routers.jfa-go.tls.certresolver=acme"
+                ]
+            }
+
+            config {
+                # https://hub.docker.com/r/hrfee/jfa-go/tags
+                image = "hrfee/jfa-go:latest"
+                ports = ["jfa-go"]
+            }
+
+            resources {
+                cpu = 50
+                memory = 50
+            }
+
+            volume_mount {
+                volume = "data-jfa-go"
+                destination = "/data"
+            }
+
+            volume_mount {
+                volume = "data-jellyfin"
+                destination = "/jf"
+            }
+        }
 
         # Downloads
         task "transmission" {
             driver = "docker"
 
             config {
-                # https://hub.docker.com/r/linuxserver/transmission/tags
-                image = "linuxserver/transmission:version-3.00-r6"
+                # https://hub.docker.com/r/haugene/transmission-openvpn/tags
+                image = "haugene/transmission-openvpn:4.3.2"
                 ports = ["transmission"]
+                cap_add = ["net_admin"]
             }
 
             resources {
-                cpu = 200
-                memory = 200
+                cpu = 5000
+                memory = 5000
+            }
+
+            template {
+                data = <<EOH
+                    {{- with secret "apps/transmission"}}
+                    OPENVPN_USERNAME="{{.Data.data.providerUsername}}"
+                    OPENVPN_CONFIG = "{{.Data.data.mullvadServer}}"
+                    LOCAL_NETWORK="{{.Data.data.localNetworks}}"
+                    TRANSMISSION_PEER_PORT= "{{.Data.data.mullvadPort}}"
+                    {{- end}}
+                    EOH
+                destination = "/secrets/.env"
+                env = true
             }
 
             env {
-                TRANSMISSION_WEB_HOME = "/flood-for-transmission/"
+                OPENVPN_PROVIDER = "MULLVAD"
+                OPENVPN_PASSWORD = "none"
+                OPENVPN_OPTS= "--pull-filter ignore ifconfig-ipv6"
+                TRANSMISSION_PEER_PORT_RANDOM_ON_START = "false"
+                TRANSMISSION_RATIO_LIMIT = "1"
+                TRANSMISSION_RATIO_LIMIT_ENABLED = "true"
+                TRANSMISSION_UTP_ENABLED = "false"
+                TRANSMISSION_PEER_LIMIT_GLOBAL = "1000"
+                TRANSMISSION_PEER_LIMIT_PER_TORRENT = "100"
+                TRANSMISSION_RPC_WHITELIST_ENABLED = "false"
+                TRANSMISSION_RPC_HOST_WHITELIST_ENABLED = "false"
+                TRANSMISSION_INCOMPLETE_DIR = "/downloads/incomplete"
+                TRANSMISSION_INCOMPLETE_DIR_ENABLED = "true"
+                TRANSMISSION_WATCH_DIR_ENABLED = "false"
+                TRANSMISSION_DOWNLOAD_DIR = "/downloads/complete"
+                TRANSMISSION_WEB_UI = "flood-for-transmission"
+                PGID = "911"
+                PUID = "911"
             }
 
             volume_mount {
@@ -177,11 +271,13 @@ job "media" {
 
             resources {
                 cpu = 150
-                memory = 150
+                memory = 300
             }
 
             env {
                 TZ = "Europe/Helsinki"
+                PGID = "911"
+                PUID = "911"
             }
 
             volume_mount {
@@ -213,11 +309,13 @@ job "media" {
 
             resources {
                 cpu = 150
-                memory = 150
+                memory = 300
             }
 
             env {
                 TZ = "Europe/Helsinki"
+                PGID = "911"
+                PUID = "911"
             }
 
             volume_mount {
@@ -275,7 +373,7 @@ job "media" {
 
             resources {
                 cpu = 150
-                memory = 150
+                memory = 400
             }
 
             env {
