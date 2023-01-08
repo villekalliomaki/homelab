@@ -91,6 +91,31 @@ job "traefik" {
                                 token: {{ with secret "nomad/creds/service-discovery" }}{{ .Data.secret_id }}{{ end }}
                                 tls:
                                     ca: /secrets/rootCA.crt
+                        file:
+                            directory: /secrets/dynamic
+                    serversTransport:
+                        rootCAs:
+                        - /secrets/rootCA.crt
+                EOF
+            }
+
+            template {
+                destination = "/secrets/dynamic/vpn.yml"
+                data = <<EOF
+                    http:
+                        routers:
+                            vpn:
+                                entrypoints:
+                                - "external_https"
+                                rule: "Host(`vpn.1fi.fi`)"
+                                service: vpn
+                                tls:
+                                    certresolver: "acme"
+                        services:
+                            vpn:
+                                loadBalancer:
+                                    servers:
+                                    - url: "https://10.1.1.2:21432/"
                 EOF
             }
 
